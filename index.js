@@ -31,8 +31,23 @@ async function run() {
   try {
     await client.connect();
 
+    const db=client.db('chef_bazaar_db');
+    //collections
+    const usersCollection=db.collection('users');
+
+    app.post('/users',async (req,res)=>{
+      const user=req.body;
+
+      user.status='active';
+      user.role='user';
+      user.createdAt=new Date();
+
+      const result=await usersCollection.insertOne(user);
+      res.send(result);
+    })
+
     await client.db("admin").command({ ping: 1 });
-    //console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     //await client.close();
   }
