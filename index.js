@@ -34,7 +34,10 @@ async function run() {
     const db=client.db('chef_bazaar_db');
     //collections
     const usersCollection=db.collection('users');
+    const mealsCollection=db.collection('meals');
+    const reviewsCollection=db.collection('reviews');
 
+    //users API
     app.post('/users',async (req,res)=>{
       const user=req.body;
 
@@ -43,6 +46,25 @@ async function run() {
       user.createdAt=new Date();
 
       const result=await usersCollection.insertOne(user);
+      res.send(result);
+    })
+
+    //meals API
+    app.get('/meals', async (req,res)=>{
+       const cursor=mealsCollection.find().sort({foodRating:-1}).limit(6);
+       const result=await cursor.toArray();
+       res.send(result);
+    })
+    app.get('/all-meals', async (req,res)=>{
+       const cursor=mealsCollection.find().sort({foodRating:-1});
+       const result=await cursor.toArray();
+       res.send(result);
+    })
+
+    //reviews API
+    app.get('/reviews',async (req,res)=>{
+      const cursor=reviewsCollection.find();
+      const result=await cursor.toArray();
       res.send(result);
     })
 
