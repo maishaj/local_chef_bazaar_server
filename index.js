@@ -3,7 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 3000;
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 //Middleware
 app.use(cors());
@@ -36,6 +36,8 @@ async function run() {
     const usersCollection=db.collection('users');
     const mealsCollection=db.collection('meals');
     const reviewsCollection=db.collection('reviews');
+    const newsletterCollection=db.collection('newsletter');
+    const favCollection=db.collection('favourites');
 
     //users API
     app.post('/users',async (req,res)=>{
@@ -55,17 +57,73 @@ async function run() {
        const result=await cursor.toArray();
        res.send(result);
     })
+
     app.get('/all-meals', async (req,res)=>{
-       const cursor=mealsCollection.find().sort({foodRating:-1});
+
+      //Sorting by price
+       const {order="desc"}=req.query;
+       const sortValue = order === "asc" ? 1 : -1;
+       const cursor = mealsCollection.find().sort({ foodPrice: sortValue });
+
        const result=await cursor.toArray();
        res.send(result);
     })
 
+    app.get('/meal-details/:id',async(req,res)=>{
+      const food=req.body;
+      const id=req.params.id;
+      const query={ _id:new ObjectId(id)};
+      const result=await mealsCollection.findOne(query);
+      res.send(result);
+    })
+
     //reviews API
     app.get('/reviews',async (req,res)=>{
-      const cursor=reviewsCollection.find();
+      const cursor=reviewsCollection.find().sort({date:-1}).limit(4);
       const result=await cursor.toArray();
       res.send(result);
+    })
+
+    app.get('/review/:foodId',async(req,res)=>{
+      const foodId=req.params.foodId;
+      const query={foodId:foodId};
+      const cursor=reviewsCollection.find(query).sort({date:-1}).limit(8);
+      const result=await cursor.toArray();
+      res.send(result);
+    })
+
+    app.post('/reviews',async(req,res)=>{
+      const review=req.body;
+      const result=await reviewsCollection.insertOne(review);
+      res.send(result);
+    })
+
+    //newsletter API
+    app.post('/newsletter',async (req,res)=>{
+       const info=req.body;
+       const email=info.email;
+       const emailexists=newsletterCollection.findOne({email});
+       if(emailexists)
+       {
+          return res.send({message:"User exists!"});
+       }
+       const result=await newsletterCollection.insertOne(info);
+       res.send(result);
+    })
+
+    //favourites
+    app.post('/favourites',async(req,res)=>{
+       const favInfo=req.body;
+
+       const mealId=req.body.mealId;
+       const query={mealId};
+       const exists=await favCollection.findOne(query);
+       if(exists){
+          return res.send({message:"Already exists in your favourites!"});
+       }
+
+       const result=favCollection.insertOne(favInfo);
+       res.send(result);
     })
 
     await client.db("admin").command({ ping: 1 });
