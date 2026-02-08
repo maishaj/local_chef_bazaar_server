@@ -4,6 +4,7 @@ require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 3000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const stripe = require('stripe')(process.env.STRIPE_SECRET);
 
 //Middleware
 app.use(cors());
@@ -201,6 +202,21 @@ async function run() {
        res.send(result);
     })
 
+    app.get('/favourites/:email',async(req,res)=>{
+       const email=req.params.email;
+       const query={userEmail:email};
+       const cursor=favCollection.find(query);
+       const result=await cursor.toArray();
+       res.send(result);
+    })
+
+   app.delete('/favourites/:id',async(req,res)=>{
+      const id=req.params.id;
+      const query={_id:new ObjectId(id)};
+      const result=await favCollection.deleteOne(query);
+      res.send(result);
+   })
+
     //Order API
     app.post('/order', async(req,res)=>{
        const orderInfo=req.body;
@@ -215,6 +231,36 @@ async function run() {
        const result=await cursor.toArray();
        res.send(result);
     })
+
+    //Payment (Stripe) related APIS
+    app.post('/create-checkout-session', async (req, res) =>{
+       const paymentInfo=req.body;
+       const amount=parseInt(paymentInfo.price)*100;
+       const session = await stripe.checkout.sessions.create({
+        line_items: [
+          {
+            price_data:{
+             currency:'BDT',
+             unit_amount:amount,
+             product_data:{
+               name:paymentInfo.mealName
+             }
+            },
+             quantity:paymentInfo.quantity,
+          },
+        ],
+        customer_email:paymentInfo.userEmail,
+        mode: 'payment',
+        metadata:{   
+          foodId:paymentInfo.foodId
+        },
+        success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success`,
+        cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
+      });
+      res.send({url:session.url});
+    });
+
+
 
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
