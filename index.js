@@ -39,6 +39,7 @@ async function run() {
     const newsletterCollection=db.collection('newsletter');
     const favCollection=db.collection('favourites');
     const ordersCollection=db.collection('orders');
+    const roleRequestCollection=db.collection('roleRequests');
 
     //users API
     app.post('/users',async (req,res)=>{
@@ -50,6 +51,49 @@ async function run() {
 
       const result=await usersCollection.insertOne(user);
       res.send(result);
+    })
+
+    app.get('/users/:email',async(req,res)=>{
+      const email=req.params.email;
+      const query={email};
+      const result=await usersCollection.findOne(query);
+      res.send(result);
+    })
+    
+    app.get('/users/:email/role',async(req,res)=>{
+       const email=req.params.email;
+       const query={email};
+       const user=await usersCollection.findOne(query);
+       res.send({role:user?.role || 'user'});
+    })
+
+    app.patch('/users/address/:email', async(req,res)=>{
+       const email=req.params.email;
+       const {address}=req.body;
+       const query={email:email};
+       const updatedInfo={
+         $set:{
+            address:address
+         }
+       }
+       const result=await usersCollection.updateOne(query,updatedInfo);
+       res.send(result);
+    })
+
+    app.post('/request-role',async(req,res)=>{
+       const roleReq=req.body;
+       const query={
+         email:roleReq.email,
+         requestType:roleReq.requestType,
+         requestStatus:roleReq.requestStatus
+       }
+       const exists=await roleRequestCollection.findOne(query);
+       if(exists)
+       {
+         return res.send({message:`You already sent a request to be an ${roleReq.requestType}`});
+       }
+       const result=await roleRequestCollection.insertOne(roleReq);
+       res.send(result);
     })
 
     //meals API
