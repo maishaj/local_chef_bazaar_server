@@ -38,6 +38,7 @@ async function run() {
     const reviewsCollection=db.collection('reviews');
     const newsletterCollection=db.collection('newsletter');
     const favCollection=db.collection('favourites');
+    const ordersCollection=db.collection('orders');
 
     //users API
     app.post('/users',async (req,res)=>{
@@ -72,7 +73,7 @@ async function run() {
     app.get('/meal-details/:id',async(req,res)=>{
       const food=req.body;
       const id=req.params.id;
-      const query={ _id:new ObjectId(id)};
+      const query={ _id:new ObjectId(id)}; 
       const result=await mealsCollection.findOne(query);
       res.send(result);
     })
@@ -123,6 +124,13 @@ async function run() {
        }
 
        const result=favCollection.insertOne(favInfo);
+       res.send(result);
+    })
+
+    //Order API
+    app.post('/order', async(req,res)=>{
+       const orderInfo=req.body;
+       const result=await ordersCollection.insertOne(orderInfo);
        res.send(result);
     })
 
