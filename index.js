@@ -80,6 +80,7 @@ async function run() {
        res.send(result);
     })
 
+    //role request API
     app.post('/request-role',async(req,res)=>{
        const roleReq=req.body;
        const query={
@@ -129,6 +130,14 @@ async function run() {
       res.send(result);
     })
 
+    app.get('/reviews/:email',async(req,res)=>{
+       const email=req.params.email;
+       const query={reviewerEmail:email};
+       const cursor=reviewsCollection.find(query);
+       const result=await cursor.toArray();
+       res.send(result);
+    })
+
     app.get('/review/:foodId',async(req,res)=>{
       const foodId=req.params.foodId;
       const query={foodId:foodId};
@@ -140,6 +149,27 @@ async function run() {
     app.post('/reviews',async(req,res)=>{
       const review=req.body;
       const result=await reviewsCollection.insertOne(review);
+      res.send(result);
+    })
+
+    app.delete('/reviews/:id',async(req,res)=>{
+      const id=req.params.id;
+      const query={ _id: new ObjectId(id)};
+      const result=await reviewsCollection.deleteOne(query);
+      res.send(result);
+    })
+
+    app.patch('/reviews/update/:id',async(req,res)=>{
+      const id=req.params.id;
+      const review=req.body;
+      const query={_id:new ObjectId(id)};
+      const updatedInfo={
+        $set:{
+           rating:review.rating,
+           comment:review.comment
+        }
+      }
+      const result=await reviewsCollection.updateOne(query,updatedInfo);
       res.send(result);
     })
 
@@ -175,6 +205,14 @@ async function run() {
     app.post('/order', async(req,res)=>{
        const orderInfo=req.body;
        const result=await ordersCollection.insertOne(orderInfo);
+       res.send(result);
+    })
+
+    app.get('/order/:email',async(req,res)=>{
+       const email=req.params.email;
+       const query={userEmail:email};
+       const cursor=ordersCollection.find(query).sort({orderTime:-1});
+       const result=await cursor.toArray();
        res.send(result);
     })
 
