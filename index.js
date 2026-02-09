@@ -54,6 +54,24 @@ async function run() {
       res.send(result);
     })
 
+    app.get("/users",async(req,res)=>{
+       const cursor=usersCollection.find();
+       const result=await cursor.toArray();
+       res.send(result);
+    })
+
+    app.patch('/users/fraud/:id',async(req,res)=>{
+       const id=req.params.id;
+       const query={_id:new ObjectId(id)};
+       const updatedDoc = {
+        $set: { 
+          status: 'fraud' 
+        }
+       };
+       const result=await usersCollection.updateOne(query,updatedDoc);
+       res.send(result);
+    })
+
     app.get('/users/:email',async(req,res)=>{
       const email=req.params.email;
       const query={email};
@@ -129,6 +147,43 @@ async function run() {
       const result=await mealsCollection.findOne(query);
       res.send(result);
     })
+
+    app.get('/meals/:email',async(req,res)=>{
+       const email=req.params.email;
+       const query={userEmail:email};
+       const cursor=mealsCollection.find(query).sort({createdAt:-1});
+       const result=await cursor.toArray();
+       res.send(result);
+    })
+
+    app.patch('/meals/:id', async (req, res) => {
+    const info = req.body;
+    const id = req.params.id;
+    const query = { _id: new ObjectId(id) };
+    const updatedDoc = {
+        $set: {
+            foodName: info.mealName,
+            chefName: info.chefName,
+            foodPrice: parseFloat(info.price),
+            foodRating: parseFloat(info.rating),
+            ingredients: info.ingredients, 
+            foodDetails: info.details,
+            deliveryArea: info.deliveryArea,
+            estimatedDeliveryTime: info.deliveryTime,
+            chefsExperience: info.experience,
+        }
+    };
+    const result = await mealsCollection.updateOne(query, updatedDoc);
+    res.send(result);
+    });
+
+    app.delete('/meals/:id',async(req,res)=>{
+      const id=req.params.id;
+      const query={ _id: new ObjectId(id)};
+      const result=await mealsCollection.deleteOne(query);
+      res.send(result);
+    })
+
 
     //reviews API
     app.get('/reviews',async (req,res)=>{
@@ -235,6 +290,27 @@ async function run() {
        const query={userEmail:email};
        const cursor=ordersCollection.find(query).sort({orderTime:-1});
        const result=await cursor.toArray();
+       res.send(result);
+    })
+
+    app.get('/orderRequest/:chefEmail',async(req,res)=>{
+       const chefEmail=req.params.chefEmail;
+       const query={chefEmail:chefEmail};
+       const cursor=ordersCollection.find(query);
+       const result=await cursor.toArray();
+       res.send(result);
+    })
+
+    app.patch('/order/status/:id', async(req,res)=>{
+       const id=req.params.id;
+       const {orderStatus}=req.body;
+       const query={_id:new ObjectId(id)};
+       const updatedData={
+         $set:{
+           orderStatus:orderStatus,
+         }
+       }
+       const result=await ordersCollection.updateOne(query,updatedData);
        res.send(result);
     })
 
