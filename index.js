@@ -105,6 +105,12 @@ async function run() {
        res.send(result);
     })
 
+    app.post('/meals', async(req,res)=>{
+       const mealInfo=req.body;
+       const result=await mealsCollection.insertOne(mealInfo);
+       res.send(result);
+    })
+
     app.get('/all-meals', async (req,res)=>{
 
       //Sorting by price
