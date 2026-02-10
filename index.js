@@ -5,10 +5,32 @@ const app = express();
 const port = process.env.PORT || 3000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const stripe = require("stripe")(process.env.STRIPE_SECRET);
+const admin = require("firebase-admin");
+const serviceAccount = require("./local-chef-bazaar-firebase-adminsdk.json");
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
 
 //Middleware
 app.use(cors());
 app.use(express.json());
+const verifyFBToken=async(req,res,next)=>{
+    const token=req.headers.authorization;
+    if(!token)
+    {
+      return res.status(401).send({message:"Unauthorized Access!"});
+    }
+    try{
+      const idToken=token.split(' ')[1];
+      const decoded=await admin.auth().verifyIdToken(idToken);
+      req.decoded_email=decoded.email;
+      next();
+    }
+    catch(err){
+      return res.status(401).send({message:"Unauthorized Access!"});
+    }
+}
 
 app.get("/", (req, res) => {
   res.send("Server is running!");
@@ -41,9 +63,10 @@ async function run() {
     const favCollection = db.collection("favourites");
     const ordersCollection = db.collection("orders");
     const roleRequestCollection = db.collection("roleRequests");
+    const paymentsCollection=db.collection('payments');
 
     //users API
-    app.post("/users", async (req, res) => {
+    app.post("/users", verifyFBToken, async (req, res) => {
       const user = req.body;
 
       user.status = "active";
@@ -54,13 +77,13 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyFBToken, async (req, res) => {
       const cursor = usersCollection.find();
       const result = await cursor.toArray();
       res.send(result);
     });
 
-    app.patch("/users/fraud/:id", async (req, res) => {
+    app.patch("/users/fraud/:id", verifyFBToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const updatedDoc = {
@@ -72,21 +95,26 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/users/:email", async (req, res) => {
+    app.get("/users/:email", verifyFBToken, async (req, res) => {
       const email = req.params.email;
+      if(email){
+        if(email!==req.decoded_email){
+          return res.status(403).send({message:"Forbidden Access!"})
+        }
+      }
       const query = { email };
       const result = await usersCollection.findOne(query);
       res.send(result);
     });
 
-    app.get("/users/:email/role", async (req, res) => {
+    app.get("/users/:email/role", verifyFBToken, async (req, res) => {
       const email = req.params.email;
       const query = { email };
       const user = await usersCollection.findOne(query);
       res.send({ role: user?.role || "user" });
     });
 
-    app.patch("/users/address/:email", async (req, res) => {
+    app.patch("/users/address/:email", verifyFBToken, async (req, res) => {
       const email = req.params.email;
       const { address } = req.body;
       const query = { email: email };
@@ -100,7 +128,7 @@ async function run() {
     });
 
     //role request API
-    app.post("/request-role", async (req, res) => {
+    app.post("/request-role", verifyFBToken, async (req, res) => {
       const roleReq = req.body;
       const query = {
         email: roleReq.email,
@@ -117,13 +145,13 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/request-role', async(req,res)=>{
+    app.get('/request-role', verifyFBToken, async(req,res)=>{
       const cursor=roleRequestCollection.find();
       const result=await cursor.toArray();
       res.send(result);
     })
 
-    app.patch('/admin/role-request/:id', async (req, res) => {
+    app.patch('/admin/role-request/:id',verifyFBToken, async (req, res) => {
     const id = req.params.id;
     const { status, userEmail, requestType } = req.body;
     const query = { _id: new ObjectId(id) };
@@ -150,7 +178,7 @@ async function run() {
     res.send({ message: "Request Rejected" });
     });
 
-    app.get('/admin-stats', async (req, res) => {
+    app.get('/admin-stats',verifyFBToken, async (req, res) => {
     try {
         const totalUsers = await usersCollection.countDocuments();
         const pendingOrders = await ordersCollection.countDocuments({ orderStatus: 'Pending' });
@@ -182,13 +210,13 @@ async function run() {
 });
 
     //meals API
-    app.get("/meals", async (req, res) => {
+    app.get("/meals",async (req, res) => {
       const cursor = mealsCollection.find().sort({ foodRating: -1 }).limit(6);
       const result = await cursor.toArray();
       res.send(result);
     });
 
-    app.post("/meals", async (req, res) => {
+    app.post("/meals", verifyFBToken, async (req, res) => {
       const mealInfo = req.body;
       const result = await mealsCollection.insertOne(mealInfo);
       res.send(result);
@@ -215,7 +243,7 @@ async function run() {
       res.send({meals:result, totalCount:count});
     });
 
-    app.get("/meal-details/:id", async (req, res) => {
+    app.get("/meal-details/:id", verifyFBToken, async (req, res) => {
       const food = req.body;
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -223,7 +251,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/meals/:email", async (req, res) => {
+    app.get("/meals/:email",verifyFBToken, async (req, res) => {
       const email = req.params.email;
       const query = { userEmail: email };
       const cursor = mealsCollection.find(query).sort({ createdAt: -1 });
@@ -231,7 +259,7 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/meals/:id", async (req, res) => {
+    app.patch("/meals/:id",verifyFBToken, async (req, res) => {
       const info = req.body;
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -252,7 +280,7 @@ async function run() {
       res.send(result);
     });
 
-    app.delete("/meals/:id", async (req, res) => {
+    app.delete("/meals/:id", verifyFBToken,async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await mealsCollection.deleteOne(query);
@@ -260,13 +288,13 @@ async function run() {
     });
 
     //reviews API
-    app.get("/reviews", async (req, res) => {
+    app.get("/reviews",verifyFBToken, async (req, res) => {
       const cursor = reviewsCollection.find().sort({ date: -1 }).limit(4);
       const result = await cursor.toArray();
       res.send(result);
     });
 
-    app.get("/reviews/:email", async (req, res) => {
+    app.get("/reviews/:email", verifyFBToken,async (req, res) => {
       const email = req.params.email;
       const query = { reviewerEmail: email };
       const cursor = reviewsCollection.find(query);
@@ -274,7 +302,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/review/:foodId", async (req, res) => {
+    app.get("/review/:foodId",verifyFBToken, async (req, res) => {
       const foodId = req.params.foodId;
       const query = { foodId: foodId };
       const cursor = reviewsCollection.find(query).sort({ date: -1 }).limit(8);
@@ -282,20 +310,20 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/reviews", async (req, res) => {
+    app.post("/reviews",verifyFBToken, async (req, res) => {
       const review = req.body;
       const result = await reviewsCollection.insertOne(review);
       res.send(result);
     });
 
-    app.delete("/reviews/:id", async (req, res) => {
+    app.delete("/reviews/:id",verifyFBToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await reviewsCollection.deleteOne(query);
       res.send(result);
     });
 
-    app.patch("/reviews/update/:id", async (req, res) => {
+    app.patch("/reviews/update/:id",verifyFBToken, async (req, res) => {
       const id = req.params.id;
       const review = req.body;
       const query = { _id: new ObjectId(id) };
@@ -322,7 +350,7 @@ async function run() {
     });
 
     //favourites
-    app.post("/favourites", async (req, res) => {
+    app.post("/favourites",verifyFBToken, async (req, res) => {
       const favInfo = req.body;
 
       const mealId = req.body.mealId;
@@ -336,7 +364,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/favourites/:email", async (req, res) => {
+    app.get("/favourites/:email",verifyFBToken, async (req, res) => {
       const email = req.params.email;
       const query = { userEmail: email };
       const cursor = favCollection.find(query);
@@ -344,7 +372,7 @@ async function run() {
       res.send(result);
     });
 
-    app.delete("/favourites/:id", async (req, res) => {
+    app.delete("/favourites/:id",verifyFBToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await favCollection.deleteOne(query);
@@ -352,21 +380,21 @@ async function run() {
     });
 
     //Order API
-    app.post("/order", async (req, res) => {
+    app.post("/order",verifyFBToken, async (req, res) => {
       const orderInfo = req.body;
       const result = await ordersCollection.insertOne(orderInfo);
       res.send(result);
     });
 
-    app.get("/order/:email", async (req, res) => {
+    app.get("/order/:email",verifyFBToken, async (req, res) => {
       const email = req.params.email;
       const query = { userEmail: email };
-      const cursor = ordersCollection.find(query).sort({ orderTime: -1 });
+      const cursor = ordersCollection.find(query).sort({ orderTime: 1 });
       const result = await cursor.toArray();
       res.send(result);
     });
 
-    app.get("/orderRequest/:chefEmail", async (req, res) => {
+    app.get("/orderRequest/:chefEmail",verifyFBToken, async (req, res) => {
       const chefEmail = req.params.chefEmail;
       const query = { chefEmail: chefEmail };
       const cursor = ordersCollection.find(query);
@@ -374,7 +402,7 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/order/status/:id", async (req, res) => {
+    app.patch("/order/status/:id",verifyFBToken, async (req, res) => {
       const id = req.params.id;
       const { orderStatus } = req.body;
       const query = { _id: new ObjectId(id) };
@@ -388,7 +416,7 @@ async function run() {
     });
 
     //Payment (Stripe) related APIS
-    app.post("/create-checkout-session", async (req, res) => {
+    app.post("/create-checkout-session",verifyFBToken,async (req, res) => {
       const paymentInfo = req.body;
       const amount = parseInt(paymentInfo.price) * 100;
       const session = await stripe.checkout.sessions.create({
@@ -407,13 +435,49 @@ async function run() {
         customer_email: paymentInfo.userEmail,
         mode: "payment",
         metadata: {
+          orderId: paymentInfo.orderId,
           foodId: paymentInfo.foodId,
+          customer_email: paymentInfo.userEmail,
         },
-        success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success`,
+        success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
       });
       res.send({ url: session.url });
     });
+
+    app.post('/confirm-payment',verifyFBToken,async(req,res)=>{
+         const {sessionId}=req.body;
+         try{
+
+            const session=await stripe.checkout.sessions.retrieve(sessionId);
+            if(session.payment_status==="paid")
+            {
+                const {orderId, customer_email, foodId } = session.metadata;
+                const paymentRecord = {
+                transactionId: session.payment_intent,
+                amount: session.amount_total / 100,
+                userEmail: customer_email,
+                foodId: foodId,
+                date: new Date(),
+              };
+
+              const paymentResult=await paymentsCollection.insertOne(paymentRecord);
+
+              const query={_id:new ObjectId(orderId)}
+              const updatedInfo={
+                $set:{
+                  paymentStatus: "paid",
+                  transactionId: session.payment_intent,
+                }
+              }
+              const result=await ordersCollection.updateOne(query,updatedInfo);
+              res.send(result);
+            }
+         }
+         catch(error){
+          res.status(500).send({ message: "Internal Server Error" });
+         }
+    })
 
     
     console.log(
