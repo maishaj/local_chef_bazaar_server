@@ -4,7 +4,7 @@ require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 3000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-const stripe = require('stripe')(process.env.STRIPE_SECRET);
+const stripe = require("stripe")(process.env.STRIPE_SECRET);
 
 //Middleware
 app.use(cors());
@@ -32,320 +32,393 @@ async function run() {
   try {
     await client.connect();
 
-    const db=client.db('chef_bazaar_db');
+    const db = client.db("chef_bazaar_db");
     //collections
-    const usersCollection=db.collection('users');
-    const mealsCollection=db.collection('meals');
-    const reviewsCollection=db.collection('reviews');
-    const newsletterCollection=db.collection('newsletter');
-    const favCollection=db.collection('favourites');
-    const ordersCollection=db.collection('orders');
-    const roleRequestCollection=db.collection('roleRequests');
+    const usersCollection = db.collection("users");
+    const mealsCollection = db.collection("meals");
+    const reviewsCollection = db.collection("reviews");
+    const newsletterCollection = db.collection("newsletter");
+    const favCollection = db.collection("favourites");
+    const ordersCollection = db.collection("orders");
+    const roleRequestCollection = db.collection("roleRequests");
 
     //users API
-    app.post('/users',async (req,res)=>{
-      const user=req.body;
+    app.post("/users", async (req, res) => {
+      const user = req.body;
 
-      user.status='active';
-      user.role='user';
-      user.createdAt=new Date();
+      user.status = "active";
+      user.role = "user";
+      user.createdAt = new Date();
 
-      const result=await usersCollection.insertOne(user);
+      const result = await usersCollection.insertOne(user);
       res.send(result);
-    })
-
-    app.get("/users",async(req,res)=>{
-       const cursor=usersCollection.find();
-       const result=await cursor.toArray();
-       res.send(result);
-    })
-
-    app.patch('/users/fraud/:id',async(req,res)=>{
-       const id=req.params.id;
-       const query={_id:new ObjectId(id)};
-       const updatedDoc = {
-        $set: { 
-          status: 'fraud' 
-        }
-       };
-       const result=await usersCollection.updateOne(query,updatedDoc);
-       res.send(result);
-    })
-
-    app.get('/users/:email',async(req,res)=>{
-      const email=req.params.email;
-      const query={email};
-      const result=await usersCollection.findOne(query);
-      res.send(result);
-    })
-    
-    app.get('/users/:email/role',async(req,res)=>{
-       const email=req.params.email;
-       const query={email};
-       const user=await usersCollection.findOne(query);
-       res.send({role:user?.role || 'user'});
-    })
-
-    app.patch('/users/address/:email', async(req,res)=>{
-       const email=req.params.email;
-       const {address}=req.body;
-       const query={email:email};
-       const updatedInfo={
-         $set:{
-            address:address
-         }
-       }
-       const result=await usersCollection.updateOne(query,updatedInfo);
-       res.send(result);
-    })
-
-    //role request API
-    app.post('/request-role',async(req,res)=>{
-       const roleReq=req.body;
-       const query={
-         email:roleReq.email,
-         requestType:roleReq.requestType,
-         requestStatus:roleReq.requestStatus
-       }
-       const exists=await roleRequestCollection.findOne(query);
-       if(exists)
-       {
-         return res.send({message:`You already sent a request to be an ${roleReq.requestType}`});
-       }
-       const result=await roleRequestCollection.insertOne(roleReq);
-       res.send(result);
-    })
-
-    //meals API
-    app.get('/meals', async (req,res)=>{
-       const cursor=mealsCollection.find().sort({foodRating:-1}).limit(6);
-       const result=await cursor.toArray();
-       res.send(result);
-    })
-
-    app.post('/meals', async(req,res)=>{
-       const mealInfo=req.body;
-       const result=await mealsCollection.insertOne(mealInfo);
-       res.send(result);
-    })
-
-    app.get('/all-meals', async (req,res)=>{
-
-      //Sorting by price
-       const {order="desc"}=req.query;
-       const sortValue = order === "asc" ? 1 : -1;
-       const cursor = mealsCollection.find().sort({ foodPrice: sortValue });
-
-       const result=await cursor.toArray();
-       res.send(result);
-    })
-
-    app.get('/meal-details/:id',async(req,res)=>{
-      const food=req.body;
-      const id=req.params.id;
-      const query={ _id:new ObjectId(id)}; 
-      const result=await mealsCollection.findOne(query);
-      res.send(result);
-    })
-
-    app.get('/meals/:email',async(req,res)=>{
-       const email=req.params.email;
-       const query={userEmail:email};
-       const cursor=mealsCollection.find(query).sort({createdAt:-1});
-       const result=await cursor.toArray();
-       res.send(result);
-    })
-
-    app.patch('/meals/:id', async (req, res) => {
-    const info = req.body;
-    const id = req.params.id;
-    const query = { _id: new ObjectId(id) };
-    const updatedDoc = {
-        $set: {
-            foodName: info.mealName,
-            chefName: info.chefName,
-            foodPrice: parseFloat(info.price),
-            foodRating: parseFloat(info.rating),
-            ingredients: info.ingredients, 
-            foodDetails: info.details,
-            deliveryArea: info.deliveryArea,
-            estimatedDeliveryTime: info.deliveryTime,
-            chefsExperience: info.experience,
-        }
-    };
-    const result = await mealsCollection.updateOne(query, updatedDoc);
-    res.send(result);
     });
 
-    app.delete('/meals/:id',async(req,res)=>{
-      const id=req.params.id;
-      const query={ _id: new ObjectId(id)};
-      const result=await mealsCollection.deleteOne(query);
+    app.get("/users", async (req, res) => {
+      const cursor = usersCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.patch("/users/fraud/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          status: "fraud",
+        },
+      };
+      const result = await usersCollection.updateOne(query, updatedDoc);
+      res.send(result);
+    });
+
+    app.get("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const result = await usersCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.get("/users/:email/role", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      res.send({ role: user?.role || "user" });
+    });
+
+    app.patch("/users/address/:email", async (req, res) => {
+      const email = req.params.email;
+      const { address } = req.body;
+      const query = { email: email };
+      const updatedInfo = {
+        $set: {
+          address: address,
+        },
+      };
+      const result = await usersCollection.updateOne(query, updatedInfo);
+      res.send(result);
+    });
+
+    //role request API
+    app.post("/request-role", async (req, res) => {
+      const roleReq = req.body;
+      const query = {
+        email: roleReq.email,
+        requestType: roleReq.requestType,
+        requestStatus: roleReq.requestStatus,
+      };
+      const exists = await roleRequestCollection.findOne(query);
+      if (exists) {
+        return res.send({
+          message: `You already sent a request to be an ${roleReq.requestType}`,
+        });
+      }
+      const result = await roleRequestCollection.insertOne(roleReq);
+      res.send(result);
+    });
+
+    app.get('/request-role', async(req,res)=>{
+      const cursor=roleRequestCollection.find();
+      const result=await cursor.toArray();
       res.send(result);
     })
 
+    app.patch('/admin/role-request/:id', async (req, res) => {
+    const id = req.params.id;
+    const { status, userEmail, requestType } = req.body;
+    const query = { _id: new ObjectId(id) };
+    const updatedInfo={
+         $set: {
+           requestStatus: status 
+        } 
+    }
+    await roleRequestCollection.updateOne(query,updatedInfo);
+    if (status === 'approved') 
+    {
+        const userQuery = { email: userEmail };
+        let updateDoc = {
+            $set: { role: requestType } 
+        };
+
+        if (requestType === 'chef') {
+            const randomID = Math.floor(1000 + Math.random() * 9000);
+            updateDoc.$set.chefId = `chef-${randomID}`;
+        }
+        const result = await usersCollection.updateOne(userQuery, updateDoc);
+        return res.send(result);
+    }
+    res.send({ message: "Request Rejected" });
+    });
+
+    app.get('/admin-stats', async (req, res) => {
+    try {
+        const totalUsers = await usersCollection.countDocuments();
+        const pendingOrders = await ordersCollection.countDocuments({ orderStatus: 'Pending' });
+        const deliveredOrders = await ordersCollection.countDocuments({ orderStatus: 'Delivered' });
+        const revenueStats = await ordersCollection.aggregate([
+            {
+                $match: { price: { $exists: true } }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalRevenue: { $sum: { $toDouble: "$price" } }
+                }
+            }
+        ]).toArray();
+
+        const totalRevenue = revenueStats.length > 0 ? revenueStats[0].totalRevenue : 0;
+
+        res.send({
+            totalUsers,
+            pendingOrders,
+            deliveredOrders,
+            totalRevenue
+        });
+    } catch (error) {
+        console.error("Stats Error:", error);
+        res.status(500).send({ message: "Internal Server Error", error: error.message });
+    }
+});
+
+    //meals API
+    app.get("/meals", async (req, res) => {
+      const cursor = mealsCollection.find().sort({ foodRating: -1 }).limit(6);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.post("/meals", async (req, res) => {
+      const mealInfo = req.body;
+      const result = await mealsCollection.insertOne(mealInfo);
+      res.send(result);
+    });
+
+    app.get("/all-meals", async (req, res) => {
+      //Sorting by price and pagination and searching
+
+      const { order,limit=0,skip=0,search="" } = req.query;
+
+      const query={
+          foodName:{
+            $regex:search,
+            $options:"i"
+          }
+      }
+
+      const sortValue = order === "asc" ? 1 : -1;
+
+      const cursor = mealsCollection.find(query).limit(Number(limit)).skip(Number(skip)).sort({ foodPrice: sortValue });
+      const result = await cursor.toArray();
+
+      const count=await mealsCollection.countDocuments(query);
+      res.send({meals:result, totalCount:count});
+    });
+
+    app.get("/meal-details/:id", async (req, res) => {
+      const food = req.body;
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await mealsCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.get("/meals/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { userEmail: email };
+      const cursor = mealsCollection.find(query).sort({ createdAt: -1 });
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.patch("/meals/:id", async (req, res) => {
+      const info = req.body;
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          foodName: info.mealName,
+          chefName: info.chefName,
+          foodPrice: parseFloat(info.price),
+          foodRating: parseFloat(info.rating),
+          ingredients: info.ingredients,
+          foodDetails: info.details,
+          deliveryArea: info.deliveryArea,
+          estimatedDeliveryTime: info.deliveryTime,
+          chefsExperience: info.experience,
+        },
+      };
+      const result = await mealsCollection.updateOne(query, updatedDoc);
+      res.send(result);
+    });
+
+    app.delete("/meals/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await mealsCollection.deleteOne(query);
+      res.send(result);
+    });
 
     //reviews API
-    app.get('/reviews',async (req,res)=>{
-      const cursor=reviewsCollection.find().sort({date:-1}).limit(4);
-      const result=await cursor.toArray();
+    app.get("/reviews", async (req, res) => {
+      const cursor = reviewsCollection.find().sort({ date: -1 }).limit(4);
+      const result = await cursor.toArray();
       res.send(result);
-    })
+    });
 
-    app.get('/reviews/:email',async(req,res)=>{
-       const email=req.params.email;
-       const query={reviewerEmail:email};
-       const cursor=reviewsCollection.find(query);
-       const result=await cursor.toArray();
-       res.send(result);
-    })
-
-    app.get('/review/:foodId',async(req,res)=>{
-      const foodId=req.params.foodId;
-      const query={foodId:foodId};
-      const cursor=reviewsCollection.find(query).sort({date:-1}).limit(8);
-      const result=await cursor.toArray();
+    app.get("/reviews/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { reviewerEmail: email };
+      const cursor = reviewsCollection.find(query);
+      const result = await cursor.toArray();
       res.send(result);
-    })
+    });
 
-    app.post('/reviews',async(req,res)=>{
-      const review=req.body;
-      const result=await reviewsCollection.insertOne(review);
+    app.get("/review/:foodId", async (req, res) => {
+      const foodId = req.params.foodId;
+      const query = { foodId: foodId };
+      const cursor = reviewsCollection.find(query).sort({ date: -1 }).limit(8);
+      const result = await cursor.toArray();
       res.send(result);
-    })
+    });
 
-    app.delete('/reviews/:id',async(req,res)=>{
-      const id=req.params.id;
-      const query={ _id: new ObjectId(id)};
-      const result=await reviewsCollection.deleteOne(query);
+    app.post("/reviews", async (req, res) => {
+      const review = req.body;
+      const result = await reviewsCollection.insertOne(review);
       res.send(result);
-    })
+    });
 
-    app.patch('/reviews/update/:id',async(req,res)=>{
-      const id=req.params.id;
-      const review=req.body;
-      const query={_id:new ObjectId(id)};
-      const updatedInfo={
-        $set:{
-           rating:review.rating,
-           comment:review.comment
-        }
-      }
-      const result=await reviewsCollection.updateOne(query,updatedInfo);
+    app.delete("/reviews/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await reviewsCollection.deleteOne(query);
       res.send(result);
-    })
+    });
+
+    app.patch("/reviews/update/:id", async (req, res) => {
+      const id = req.params.id;
+      const review = req.body;
+      const query = { _id: new ObjectId(id) };
+      const updatedInfo = {
+        $set: {
+          rating: review.rating,
+          comment: review.comment,
+        },
+      };
+      const result = await reviewsCollection.updateOne(query, updatedInfo);
+      res.send(result);
+    });
 
     //newsletter API
-    app.post('/newsletter',async (req,res)=>{
-       const info=req.body;
-       const email=info.email;
-       const emailexists=newsletterCollection.findOne({email});
-       if(emailexists)
-       {
-          return res.send({message:"User exists!"});
-       }
-       const result=await newsletterCollection.insertOne(info);
-       res.send(result);
-    })
+    app.post("/newsletter", async (req, res) => {
+      const info = req.body;
+      const email = info.email;
+      const emailexists = newsletterCollection.findOne({ email });
+      if (emailexists) {
+        return res.send({ message: "User exists!" });
+      }
+      const result = await newsletterCollection.insertOne(info);
+      res.send(result);
+    });
 
     //favourites
-    app.post('/favourites',async(req,res)=>{
-       const favInfo=req.body;
+    app.post("/favourites", async (req, res) => {
+      const favInfo = req.body;
 
-       const mealId=req.body.mealId;
-       const query={mealId};
-       const exists=await favCollection.findOne(query);
-       if(exists){
-          return res.send({message:"Already exists in your favourites!"});
-       }
+      const mealId = req.body.mealId;
+      const query = { mealId };
+      const exists = await favCollection.findOne(query);
+      if (exists) {
+        return res.send({ message: "Already exists in your favourites!" });
+      }
 
-       const result=favCollection.insertOne(favInfo);
-       res.send(result);
-    })
-
-    app.get('/favourites/:email',async(req,res)=>{
-       const email=req.params.email;
-       const query={userEmail:email};
-       const cursor=favCollection.find(query);
-       const result=await cursor.toArray();
-       res.send(result);
-    })
-
-   app.delete('/favourites/:id',async(req,res)=>{
-      const id=req.params.id;
-      const query={_id:new ObjectId(id)};
-      const result=await favCollection.deleteOne(query);
+      const result = favCollection.insertOne(favInfo);
       res.send(result);
-   })
+    });
+
+    app.get("/favourites/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { userEmail: email };
+      const cursor = favCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.delete("/favourites/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await favCollection.deleteOne(query);
+      res.send(result);
+    });
 
     //Order API
-    app.post('/order', async(req,res)=>{
-       const orderInfo=req.body;
-       const result=await ordersCollection.insertOne(orderInfo);
-       res.send(result);
-    })
+    app.post("/order", async (req, res) => {
+      const orderInfo = req.body;
+      const result = await ordersCollection.insertOne(orderInfo);
+      res.send(result);
+    });
 
-    app.get('/order/:email',async(req,res)=>{
-       const email=req.params.email;
-       const query={userEmail:email};
-       const cursor=ordersCollection.find(query).sort({orderTime:-1});
-       const result=await cursor.toArray();
-       res.send(result);
-    })
+    app.get("/order/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { userEmail: email };
+      const cursor = ordersCollection.find(query).sort({ orderTime: -1 });
+      const result = await cursor.toArray();
+      res.send(result);
+    });
 
-    app.get('/orderRequest/:chefEmail',async(req,res)=>{
-       const chefEmail=req.params.chefEmail;
-       const query={chefEmail:chefEmail};
-       const cursor=ordersCollection.find(query);
-       const result=await cursor.toArray();
-       res.send(result);
-    })
+    app.get("/orderRequest/:chefEmail", async (req, res) => {
+      const chefEmail = req.params.chefEmail;
+      const query = { chefEmail: chefEmail };
+      const cursor = ordersCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
 
-    app.patch('/order/status/:id', async(req,res)=>{
-       const id=req.params.id;
-       const {orderStatus}=req.body;
-       const query={_id:new ObjectId(id)};
-       const updatedData={
-         $set:{
-           orderStatus:orderStatus,
-         }
-       }
-       const result=await ordersCollection.updateOne(query,updatedData);
-       res.send(result);
-    })
+    app.patch("/order/status/:id", async (req, res) => {
+      const id = req.params.id;
+      const { orderStatus } = req.body;
+      const query = { _id: new ObjectId(id) };
+      const updatedData = {
+        $set: {
+          orderStatus: orderStatus,
+        },
+      };
+      const result = await ordersCollection.updateOne(query, updatedData);
+      res.send(result);
+    });
 
     //Payment (Stripe) related APIS
-    app.post('/create-checkout-session', async (req, res) =>{
-       const paymentInfo=req.body;
-       const amount=parseInt(paymentInfo.price)*100;
-       const session = await stripe.checkout.sessions.create({
+    app.post("/create-checkout-session", async (req, res) => {
+      const paymentInfo = req.body;
+      const amount = parseInt(paymentInfo.price) * 100;
+      const session = await stripe.checkout.sessions.create({
         line_items: [
           {
-            price_data:{
-             currency:'BDT',
-             unit_amount:amount,
-             product_data:{
-               name:paymentInfo.mealName
-             }
+            price_data: {
+              currency: "BDT",
+              unit_amount: amount,
+              product_data: {
+                name: paymentInfo.mealName,
+              },
             },
-             quantity:paymentInfo.quantity,
+            quantity: paymentInfo.quantity,
           },
         ],
-        customer_email:paymentInfo.userEmail,
-        mode: 'payment',
-        metadata:{   
-          foodId:paymentInfo.foodId
+        customer_email: paymentInfo.userEmail,
+        mode: "payment",
+        metadata: {
+          foodId: paymentInfo.foodId,
         },
         success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success`,
         cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
       });
-      res.send({url:session.url});
+      res.send({ url: session.url });
     });
 
-
-
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!",
+    );
   } finally {
     //await client.close();
   }
