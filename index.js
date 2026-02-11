@@ -6,7 +6,9 @@ const port = process.env.PORT || 3000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const stripe = require("stripe")(process.env.STRIPE_SECRET);
 const admin = require("firebase-admin");
-const serviceAccount = require("./local-chef-bazaar-firebase-adminsdk.json");
+//const serviceAccount = require("./local-chef-bazaar-firebase-adminsdk.json");
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8')
+const serviceAccount = JSON.parse(decoded);
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
@@ -37,7 +39,7 @@ app.get("/", (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Local Chef Bazzar is listening on port ${port}`);
+  //(`Local Chef Bazzar is listening on port ${port}`);
 });
 
 const uri = `mongodb+srv://${process.env.DBUser}:${process.env.DBPassword}@cluster0.fjenzci.mongodb.net/?appName=Cluster0`;
@@ -479,10 +481,6 @@ async function run() {
          }
     })
 
-    
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!",
-    );
   } finally {
     //await client.close();
   }
