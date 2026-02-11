@@ -218,7 +218,7 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/meals", verifyFBToken, async (req, res) => {
+    app.post("/meals",async (req, res) => {
       const mealInfo = req.body;
       const result = await mealsCollection.insertOne(mealInfo);
       res.send(result);
