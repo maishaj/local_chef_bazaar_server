@@ -38,9 +38,9 @@ app.get("/", (req, res) => {
   res.send("Server is running!");
 });
 
-app.listen(port, () => {
-  //(`Local Chef Bazzar is listening on port ${port}`);
-});
+// app.listen(port, () => {
+//   (`Local Chef Bazzar is listening on port ${port}`);
+// });
 
 const uri = `mongodb+srv://${process.env.DBUser}:${process.env.DBPassword}@cluster0.fjenzci.mongodb.net/?appName=Cluster0`;
 
