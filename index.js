@@ -391,7 +391,7 @@ async function run() {
     app.get("/order/:email",verifyFBToken, async (req, res) => {
       const email = req.params.email;
       const query = { userEmail: email };
-      const cursor = ordersCollection.find(query).sort({ orderTime: 1 });
+      const cursor = ordersCollection.find(query).sort({ orderTime: -1 });
       const result = await cursor.toArray();
       res.send(result);
     });
