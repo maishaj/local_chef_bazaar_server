@@ -384,6 +384,7 @@ async function run() {
     //Order API
     app.post("/order",verifyFBToken, async (req, res) => {
       const orderInfo = req.body;
+      orderInfo.orderTime=new Date();
       const result = await ordersCollection.insertOne(orderInfo);
       res.send(result);
     });
