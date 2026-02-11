@@ -218,7 +218,7 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/meals",async (req, res) => {
+    app.post("/meals", verifyFBToken,async (req, res) => {
       const mealInfo = req.body;
       const result = await mealsCollection.insertOne(mealInfo);
       res.send(result);
@@ -290,7 +290,7 @@ async function run() {
     });
 
     //reviews API
-    app.get("/reviews",verifyFBToken, async (req, res) => {
+    app.get("/reviews", async (req, res) => {
       const cursor = reviewsCollection.find().sort({ date: -1 }).limit(4);
       const result = await cursor.toArray();
       res.send(result);
