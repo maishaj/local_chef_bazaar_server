@@ -33,6 +33,17 @@ const verifyFBToken = async (req, res, next) => {
   }
 };
 
+const verifyAdmin = async (req, res, next) => {
+    const email = req.decoded_email;
+    const query = { email: email };
+    const user = await usersCollection.findOne(query);
+    const isAdmin = user?.role === 'admin';
+    if (!isAdmin) {
+        return res.status(403).send({ message: "Forbidden Access: Admins Only" });
+    }
+    next();
+};
+
 app.get("/", (req, res) => {
   res.send("Server is running!");
 });
@@ -65,6 +76,7 @@ async function run() {
     const ordersCollection = db.collection("orders");
     const roleRequestCollection = db.collection("roleRequests");
     const paymentsCollection = db.collection("payments");
+    
 
 
     //users API
@@ -230,7 +242,7 @@ async function run() {
 
     //meals API
     app.get("/meals", async (req, res) => {
-      const cursor = mealsCollection.find().sort({ foodRating: -1 }).limit(6);
+      const cursor = mealsCollection.find().sort({ foodRating: -1 }).limit(8);
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -242,28 +254,32 @@ async function run() {
     });
 
     app.get("/all-meals", async (req, res) => {
-      //Sorting by price and pagination and searching
+    const { order, limit = 0, skip = 0, search = "", area = "", rating = "" } = req.query;
 
-      const { order, limit = 0, skip = 0, search = "" } = req.query;
+    const query = {
+      foodName: { $regex: search, $options: "i" }
+    };
 
-      const query = {
-        foodName: {
-          $regex: search,
-          $options: "i",
-        },
-      };
+    if (area) {
+      query.deliveryArea = area;
+    }
 
-      const sortValue = order === "asc" ? 1 : -1;
+    if (rating) {
+      query.foodRating = { $gte: Number(rating) };
+    }
 
-      const cursor = mealsCollection
-        .find(query)
-        .limit(Number(limit))
-        .skip(Number(skip))
-        .sort({ foodPrice: sortValue });
-      const result = await cursor.toArray();
+    const sortValue = order === "asc" ? 1 : -1;
 
-      const count = await mealsCollection.countDocuments(query);
-      res.send({ meals: result, totalCount: count });
+    const cursor = mealsCollection
+      .find(query)
+      .limit(Number(limit))
+      .skip(Number(skip))
+      .sort({ foodPrice: sortValue });
+
+    const result = await cursor.toArray();
+    const count = await mealsCollection.countDocuments(query);
+
+    res.send({ meals: result, totalCount: count });
     });
 
     app.get("/meal-details/:id", verifyFBToken, async (req, res) => {
@@ -280,6 +296,23 @@ async function run() {
       const cursor = mealsCollection.find(query).sort({ createdAt: -1 });
       const result = await cursor.toArray();
       res.send(result);
+    });
+
+    app.get("/related-meals", async (req, res) => {
+    try {
+        const area = req.query.area;
+        const currentId = req.query.id;
+        const query = {
+            deliveryArea: area,
+            _id: { $ne: new ObjectId(currentId) } 
+        };
+        const cursor = mealsCollection.find(query).limit(4);
+        const result = await cursor.toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching related meals:", error);
+        res.status(500).send({ message: "Failed to fetch related meals" });
+     }
     });
 
     app.patch("/meals/:id", verifyFBToken, async (req, res) => {
@@ -358,6 +391,19 @@ async function run() {
       };
       const result = await reviewsCollection.updateOne(query, updatedInfo);
       res.send(result);
+    });
+    
+    app.get("/admin/reviews",async (req, res) => {
+        const result = await reviewsCollection.find().toArray();
+        res.send(result);
+    });
+
+
+    app.delete("/admin/reviews/:id",async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await reviewsCollection.deleteOne(query);
+        res.send(result);
     });
 
     //newsletter API
@@ -439,6 +485,7 @@ async function run() {
       res.send(result);
     });
 
+    
     //Payment (Stripe) related APIS
     app.post("/create-checkout-session", verifyFBToken, async (req, res) => {
       const paymentInfo = req.body;
