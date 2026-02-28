@@ -76,8 +76,8 @@ async function run() {
     const ordersCollection = db.collection("orders");
     const roleRequestCollection = db.collection("roleRequests");
     const paymentsCollection = db.collection("payments");
+    const contactUsCollection=db.collection("contactus");
     
-
 
     //users API
     app.post("/users", async (req, res) => {
@@ -233,7 +233,6 @@ async function run() {
           totalRevenue,
         });
       } catch (error) {
-        console.error("Stats Error:", error);
         res
           .status(500)
           .send({ message: "Internal Server Error", error: error.message });
@@ -282,7 +281,7 @@ async function run() {
     res.send({ meals: result, totalCount: count });
     });
 
-    app.get("/meal-details/:id", verifyFBToken, async (req, res) => {
+    app.get("/meal-details/:id", async (req, res) => {
       const food = req.body;
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -310,12 +309,11 @@ async function run() {
         const result = await cursor.toArray();
         res.send(result);
       } catch (error) {
-        console.error("Error fetching related meals:", error);
         res.status(500).send({ message: "Failed to fetch related meals" });
      }
     });
 
-    app.patch("/meals/:id", verifyFBToken, async (req, res) => {
+    app.patch("/meals/:id",async (req, res) => {
       const info = req.body;
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -344,7 +342,7 @@ async function run() {
     });
 
     //reviews API
-    app.get("/reviews", async (req, res) => {
+    app.get("/reviews",async (req, res) => {
       const cursor = reviewsCollection.find().sort({ date: -1 }).limit(4);
       const result = await cursor.toArray();
       res.send(result);
@@ -358,7 +356,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/review/:foodId", verifyFBToken, async (req, res) => {
+    app.get("/review/:foodId", async (req, res) => {
       const foodId = req.params.foodId;
       const query = { foodId: foodId };
       const cursor = reviewsCollection.find(query).sort({ date: -1 }).limit(8);
@@ -484,6 +482,41 @@ async function run() {
       const result = await ordersCollection.updateOne(query, updatedData);
       res.send(result);
     });
+
+    
+    // Update User Profile
+    app.patch('/users/update/:email',verifyFBToken, async (req, res) => {
+      const email = req.params.email;
+      const updatedData = req.body;
+
+      const query = { email: email};
+      const updateDoc = {
+        $set: {
+          displayName: updatedData.name,
+          address: updatedData.address,
+          photoURL: updatedData.photo,
+        },
+      };
+
+      try {
+        const result = await usersCollection.updateOne(query, updateDoc);
+        if (result.modifiedCount > 0 || result.matchedCount > 0) {
+          res.send({ success: true, message: 'Profile updated successfully' });
+        } else {
+          res.status(404).send({ message: 'User not found' });
+        }
+      } catch (error) {
+        res.status(500).send({ message: 'Internal Server Error' });
+      }
+    });
+
+    //Contact Us
+
+    app.post('/contact',async (req,res)=>{
+       const info=req.body;
+       const result=await contactUsCollection.insertOne(info);
+       res.send(result);
+    })
 
     
     //Payment (Stripe) related APIS
